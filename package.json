@@ -38,6 +38,7 @@
     "build": "npm run clean && tsc",
     "build:prod": "npm run clean && tsc --project tsconfig.prod.json",
     "dev": "tsx src/cli.ts",
+    "prepare": "npm run build:prod",
     "prepublishOnly": "npm run build:prod",
     "lint": "eslint .",
     "check": "tsc --noEmit",
