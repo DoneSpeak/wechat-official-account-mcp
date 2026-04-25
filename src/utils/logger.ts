@@ -68,7 +68,7 @@ class Logger {
       // 脱敏所有参数
       const sanitizedArgs = args.map(arg => sanitizeValue(arg));
 
-      console.log(`[${timestamp}] [${levelName}] ${message}`, ...sanitizedArgs);
+      console.error(`[${timestamp}] [${levelName}] ${message}`, ...sanitizedArgs);
     }
   }
 
