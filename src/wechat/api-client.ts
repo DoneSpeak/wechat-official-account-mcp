@@ -1,4 +1,4 @@
-import axios, { AxiosInstance } from 'axios';
+import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'axios';
 import FormData from 'form-data';
 import { AuthManager } from '../auth/auth-manager.js';
 import { logger } from '../utils/logger.js';
@@ -10,6 +10,8 @@ import { logger } from '../utils/logger.js';
 export class WechatApiClient {
   private authManager: AuthManager;
   private httpClient: AxiosInstance;
+  private static readonly MAX_HTTP_RETRIES = 2;
+  private static readonly RETRY_BACKOFF_MS = 500;
 
   constructor(authManager: AuthManager) {
     this.authManager = authManager;
@@ -20,19 +22,45 @@ export class WechatApiClient {
 
     // 请求拦截器：自动添加 access_token
     this.httpClient.interceptors.request.use(async (config) => {
+      const retryMetadata = this.getRetryMetadata(config);
       if (config.url && !config.url.includes('access_token=')) {
         const tokenInfo = await this.authManager.getAccessToken();
         const separator = config.url.includes('?') ? '&' : '?';
         config.url += `${separator}access_token=${tokenInfo.accessToken}`;
       }
+      retryMetadata.retryCount = retryMetadata.retryCount ?? 0;
+      retryMetadata.tokenRefreshAttempted = retryMetadata.tokenRefreshAttempted ?? false;
       return config;
     });
 
     // 响应拦截器：处理错误
     this.httpClient.interceptors.response.use(
-      (response) => response,
-      (error) => {
+      async (response) => {
+        const config = response.config;
+        const retryMetadata = this.getRetryMetadata(config);
+        const errcode = response?.data?.errcode;
+        if (errcode === 40001 && !retryMetadata.tokenRefreshAttempted) {
+          retryMetadata.tokenRefreshAttempted = true;
+          await this.authManager.refreshAccessToken();
+          config.url = this.stripAccessTokenFromUrl(config.url);
+          return this.httpClient.request(config);
+        }
+        return response;
+      },
+      async (error: AxiosError) => {
         const status = error?.response?.status;
+        const config = error.config;
+        if (config) {
+          const retryMetadata = this.getRetryMetadata(config);
+          if (
+            this.shouldRetryRequest(error) &&
+            (retryMetadata.retryCount ?? 0) < WechatApiClient.MAX_HTTP_RETRIES
+          ) {
+            retryMetadata.retryCount = (retryMetadata.retryCount ?? 0) + 1;
+            await this.sleep(WechatApiClient.RETRY_BACKOFF_MS * retryMetadata.retryCount);
+            return this.httpClient.request(config);
+          }
+        }
         logger.error('Wechat API request failed:', status ? String(status) : error?.message);
         throw error;
       }
@@ -41,6 +69,50 @@ export class WechatApiClient {
 
   getAuthManager(): AuthManager {
     return this.authManager;
+  }
+
+  private getRetryMetadata(config?: InternalAxiosRequestConfig): {
+    retryCount?: number;
+    tokenRefreshAttempted?: boolean;
+  } {
+    const target = (config ?? {}) as InternalAxiosRequestConfig & {
+      __retryMetadata?: {
+        retryCount?: number;
+        tokenRefreshAttempted?: boolean;
+      };
+    };
+    if (!target.__retryMetadata) {
+      target.__retryMetadata = {};
+    }
+    return target.__retryMetadata;
+  }
+
+  private shouldRetryRequest(error: AxiosError): boolean {
+    const code = error.code ?? '';
+    const status = error.response?.status;
+    if (code === 'ECONNRESET' || code === 'ETIMEDOUT' || code === 'ECONNABORTED') {
+      return true;
+    }
+    if (status === 429) {
+      return true;
+    }
+    return typeof status === 'number' && status >= 500;
+  }
+
+  private stripAccessTokenFromUrl(url?: string): string | undefined {
+    if (!url) return url;
+    return url
+      .replace(/([?&])access_token=[^&]*(&)?/g, (match, separator: string, hasTail: string | undefined) => {
+        if (separator === '?' && hasTail) return '?';
+        return hasTail ? separator : '';
+      })
+      .replace(/[?&]$/, '');
+  }
+
+  private async sleep(ms: number): Promise<void> {
+    await new Promise((resolve) => {
+      setTimeout(resolve, ms);
+    });
   }
 
   /**

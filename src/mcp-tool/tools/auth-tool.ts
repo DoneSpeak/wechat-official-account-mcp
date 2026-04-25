@@ -10,7 +10,18 @@ const authToolSchema = z.object({
   appSecret: appSecretSchema.optional(),
   token: z.string().max(128, 'Token长度不能超过128个字符').optional(),
   encodingAESKey: z.string().length(43, 'EncodingAESKey必须为43个字符').optional(),
+  reveal: z.boolean().optional(),
 });
+
+function shouldRevealSecrets(reveal: boolean | undefined): boolean {
+  return reveal === true && process.env.WECHAT_MCP_REVEAL_SECRETS === 'true';
+}
+
+function maskSecret(value?: string): string {
+  if (!value) return '未设置';
+  if (value.length <= 8) return '***';
+  return `${value.substring(0, 4)}...${value.substring(value.length - 4)}`;
+}
 
 /**
  * 认证工具处理器
@@ -20,7 +31,8 @@ async function handleAuthTool(context: WechatToolContext): Promise<WechatToolRes
   
   try {
     const validatedArgs = authToolSchema.parse(args);
-    const { action, appId, appSecret, token, encodingAESKey } = validatedArgs;
+    const { action, appId, appSecret, token, encodingAESKey, reveal } = validatedArgs;
+    const revealSecrets = shouldRevealSecrets(reveal);
 
     switch (action) {
       case 'configure': {
@@ -38,7 +50,7 @@ async function handleAuthTool(context: WechatToolContext): Promise<WechatToolRes
         return {
           content: [{
             type: 'text',
-            text: `微信公众号配置已成功保存\n- AppID: ${appId}\n- Token: ${token || '未设置'}\n- EncodingAESKey: ${encodingAESKey || '未设置'}`,
+            text: `微信公众号配置已成功保存\n- AppID: ${appId}\n- Token: ${token ? '已设置' : '未设置'}\n- EncodingAESKey: ${encodingAESKey ? '已设置' : '未设置'}`,
           }],
         };
       }
@@ -50,7 +62,7 @@ async function handleAuthTool(context: WechatToolContext): Promise<WechatToolRes
         return {
           content: [{
             type: 'text',
-            text: `Access Token 信息:\n- Token: ${tokenInfo.accessToken}\n- 剩余有效时间: ${expiresIn} 秒\n- 过期时间: ${new Date(tokenInfo.expiresAt).toLocaleString()}`,
+            text: `Access Token 信息:\n- Token: ${revealSecrets ? tokenInfo.accessToken : maskSecret(tokenInfo.accessToken)}\n- 剩余有效时间: ${expiresIn} 秒\n- 过期时间: ${new Date(tokenInfo.expiresAt).toLocaleString()}`,
           }],
         };
       }
@@ -62,7 +74,7 @@ async function handleAuthTool(context: WechatToolContext): Promise<WechatToolRes
         return {
           content: [{
             type: 'text',
-            text: `Access Token 已刷新:\n- 新 Token: ${tokenInfo.accessToken}\n- 有效时间: ${expiresIn} 秒\n- 过期时间: ${new Date(tokenInfo.expiresAt).toLocaleString()}`,
+            text: `Access Token 已刷新:\n- 新 Token: ${revealSecrets ? tokenInfo.accessToken : maskSecret(tokenInfo.accessToken)}\n- 有效时间: ${expiresIn} 秒\n- 过期时间: ${new Date(tokenInfo.expiresAt).toLocaleString()}`,
           }],
         };
       }
@@ -81,7 +93,7 @@ async function handleAuthTool(context: WechatToolContext): Promise<WechatToolRes
         return {
           content: [{
             type: 'text',
-            text: `当前微信公众号配置:\n- AppID: ${config.appId}\n- AppSecret: ${config.appSecret.substring(0, 8)}...\n- Token: ${config.token || '未设置'}\n- EncodingAESKey: ${config.encodingAESKey || '未设置'}`,
+            text: `当前微信公众号配置:\n- AppID: ${config.appId}\n- AppSecret: ${revealSecrets ? config.appSecret : maskSecret(config.appSecret)}\n- Token: ${revealSecrets ? (config.token || '未设置') : maskSecret(config.token)}\n- EncodingAESKey: ${revealSecrets ? (config.encodingAESKey || '未设置') : maskSecret(config.encodingAESKey)}`,
           }],
         };
       }
@@ -107,7 +119,8 @@ async function handleAuthTool(context: WechatToolContext): Promise<WechatToolRes
 async function handleAuthMcpTool(args: any, apiClient: WechatApiClient): Promise<WechatToolResult> {
   try {
     const validatedArgs = authToolSchema.parse(args);
-    const { action, appId, appSecret, token, encodingAESKey } = validatedArgs;
+    const { action, appId, appSecret, token, encodingAESKey, reveal } = validatedArgs;
+    const revealSecrets = shouldRevealSecrets(reveal);
     const authManager = apiClient.getAuthManager();
 
     switch (action) {
@@ -119,7 +132,7 @@ async function handleAuthMcpTool(args: any, apiClient: WechatApiClient): Promise
         return {
           content: [{
             type: 'text',
-            text: `微信公众号配置已成功保存\n- AppID: ${appId}\n- Token: ${token || '未设置'}\n- EncodingAESKey: ${encodingAESKey || '未设置'}`,
+            text: `微信公众号配置已成功保存\n- AppID: ${appId}\n- Token: ${token ? '已设置' : '未设置'}\n- EncodingAESKey: ${encodingAESKey ? '已设置' : '未设置'}`,
           }],
         };
       }
@@ -129,7 +142,7 @@ async function handleAuthMcpTool(args: any, apiClient: WechatApiClient): Promise
         return {
           content: [{
             type: 'text',
-            text: `Access Token 信息:\n- Token: ${tokenInfo.accessToken}\n- 剩余有效时间: ${expiresIn} 秒\n- 过期时间: ${new Date(tokenInfo.expiresAt).toLocaleString()}`,
+            text: `Access Token 信息:\n- Token: ${revealSecrets ? tokenInfo.accessToken : maskSecret(tokenInfo.accessToken)}\n- 剩余有效时间: ${expiresIn} 秒\n- 过期时间: ${new Date(tokenInfo.expiresAt).toLocaleString()}`,
           }],
         };
       }
@@ -139,7 +152,7 @@ async function handleAuthMcpTool(args: any, apiClient: WechatApiClient): Promise
         return {
           content: [{
             type: 'text',
-            text: `Access Token 已刷新:\n- 新 Token: ${tokenInfo.accessToken}\n- 有效时间: ${expiresIn} 秒\n- 过期时间: ${new Date(tokenInfo.expiresAt).toLocaleString()}`,
+            text: `Access Token 已刷新:\n- 新 Token: ${revealSecrets ? tokenInfo.accessToken : maskSecret(tokenInfo.accessToken)}\n- 有效时间: ${expiresIn} 秒\n- 过期时间: ${new Date(tokenInfo.expiresAt).toLocaleString()}`,
           }],
         };
       }
@@ -156,7 +169,7 @@ async function handleAuthMcpTool(args: any, apiClient: WechatApiClient): Promise
         return {
           content: [{
             type: 'text',
-            text: `当前微信公众号配置:\n- AppID: ${config.appId}\n- AppSecret: ${config.appSecret.substring(0, 8)}...\n- Token: ${config.token || '未设置'}\n- EncodingAESKey: ${config.encodingAESKey || '未设置'}`,
+            text: `当前微信公众号配置:\n- AppID: ${config.appId}\n- AppSecret: ${revealSecrets ? config.appSecret : maskSecret(config.appSecret)}\n- Token: ${revealSecrets ? (config.token || '未设置') : maskSecret(config.token)}\n- EncodingAESKey: ${revealSecrets ? (config.encodingAESKey || '未设置') : maskSecret(config.encodingAESKey)}`,
           }],
         };
       }
@@ -205,6 +218,10 @@ export const authTool: WechatToolDefinition = {
         type: 'string',
         description: '微信公众号 EncodingAESKey（可选，用于消息加密）',
       },
+      reveal: {
+        type: 'boolean',
+        description: '是否显示完整敏感信息（仅当 WECHAT_MCP_REVEAL_SECRETS=true 时生效）',
+      },
     },
     required: ['action'],
   },
@@ -223,6 +240,7 @@ export const authMcpTool: McpTool = {
     appSecret: z.string().optional().describe('微信公众号 AppSecret（配置时必需）'),
     token: z.string().optional().describe('微信公众号 Token（可选，用于消息验证）'),
     encodingAESKey: z.string().optional().describe('微信公众号 EncodingAESKey（可选，用于消息加密）'),
+    reveal: z.boolean().optional().describe('是否显示完整敏感信息（仅当 WECHAT_MCP_REVEAL_SECRETS=true 时生效）'),
   },
   handler: handleAuthMcpTool,
 };

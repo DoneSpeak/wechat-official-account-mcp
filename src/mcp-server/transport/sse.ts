@@ -8,6 +8,8 @@ export const initSSEServer: InitTransportServerFunction = async (
   options,
 ) => {
   const { appId, appSecret, port = '3000' } = options;
+  const allowedOrigin = process.env.CORS_ORIGIN;
+  const sseToken = process.env.WECHAT_MCP_SSE_TOKEN || process.env.MCP_AUTH_TOKEN;
 
   if (!appId || !appSecret) {
     logger.error('Missing App ID or App Secret');
@@ -16,6 +18,31 @@ export const initSSEServer: InitTransportServerFunction = async (
 
   const app = express();
   app.use(express.json());
+
+  if (!sseToken) {
+    logger.warn('SSE auth token is not configured. SSE endpoint is running without authentication.');
+  }
+
+  app.use(['/sse', '/messages'], (req, res, next) => {
+    if (!sseToken) {
+      next();
+      return;
+    }
+
+    const authHeader = req.headers.authorization;
+    const bearerToken = authHeader?.startsWith('Bearer ')
+      ? authHeader.substring('Bearer '.length)
+      : undefined;
+    const queryToken = typeof req.query.token === 'string' ? req.query.token : undefined;
+    const requestToken = bearerToken || queryToken;
+
+    if (requestToken !== sseToken) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    next();
+  });
 
   // 错误处理中间件
   app.use((err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
@@ -32,7 +59,7 @@ export const initSSEServer: InitTransportServerFunction = async (
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
         'Connection': 'keep-alive',
-        'Access-Control-Allow-Origin': process.env.CORS_ORIGIN || '*',
+        ...(allowedOrigin ? { 'Access-Control-Allow-Origin': allowedOrigin } : {}),
         'Access-Control-Allow-Headers': 'Cache-Control'
       });
 

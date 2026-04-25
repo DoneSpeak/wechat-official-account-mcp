@@ -36,14 +36,34 @@ export class AuthManager {
    * 设置微信公众号配置
    */
   async setConfig(config: WechatConfig): Promise<void> {
+    const previousConfig = this.config ?? await this.storageManager.getConfig();
+    const credentialsChanged = this.hasCredentialsChanged(previousConfig, config);
+
     this.config = config;
     await this.storageManager.saveConfig(config);
     
-    // 配置更新后清除旧的 Access Token
-    this.tokenInfo = null;
-    await this.storageManager.clearAccessToken();
+    // 仅当关键凭据变化时清理旧 token
+    if (credentialsChanged) {
+      this.tokenInfo = null;
+      await this.storageManager.clearAccessToken();
+    }
     
     logger.info('Wechat config updated');
+  }
+
+  /**
+   * 启动时使用 CLI 凭据覆盖 appId/appSecret，保留其余配置字段
+   */
+  async setCredentialsFromCli(appId: string, appSecret: string): Promise<void> {
+    const currentConfig = this.config ?? await this.storageManager.getConfig();
+    const mergedConfig: WechatConfig = {
+      appId,
+      appSecret,
+      token: currentConfig?.token,
+      encodingAESKey: currentConfig?.encodingAESKey,
+    };
+
+    await this.setConfig(mergedConfig);
   }
 
   /**
@@ -142,5 +162,12 @@ export class AuthManager {
     await this.storageManager.clearConfig();
     await this.storageManager.clearAccessToken();
     logger.info('Auth cleared');
+  }
+
+  private hasCredentialsChanged(previousConfig: WechatConfig | null, nextConfig: WechatConfig): boolean {
+    if (!previousConfig) {
+      return true;
+    }
+    return previousConfig.appId !== nextConfig.appId || previousConfig.appSecret !== nextConfig.appSecret;
   }
 }

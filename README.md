@@ -51,10 +51,10 @@
 
 ```bash
 # 启动 MCP 服务器
-npx wechat-official-account-mcp mcp -a <your_app_id> -s <your_app_secret>
+npx yummy-wechat-official-account-mcp mcp -a <your_app_id> -s <your_app_secret>
 
 # 示例
-npx wechat-official-account-mcp mcp -a wx1234567890abcdef -s your_app_secret_here
+npx yummy-wechat-official-account-mcp mcp -a wx1234567890abcdef -s your_app_secret_here
 ```
 
 > 提示：如使用 SSE 模式，请设置 `CORS_ORIGIN` 为允许访问的域名白名单。
@@ -63,7 +63,7 @@ npx wechat-official-account-mcp mcp -a wx1234567890abcdef -s your_app_secret_her
 
 ```bash
 # 全局安装
-npm install -g wechat-official-account-mcp
+npm install -g yummy-wechat-official-account-mcp
 
 # 启动服务
 wechat-mcp mcp -a <your_app_id> -s <your_app_secret>
@@ -73,7 +73,7 @@ wechat-mcp mcp -a <your_app_id> -s <your_app_secret>
 
 ```bash
 # 1. 克隆项目
-git clone https://github.com/xwang152-jack/wechat-official-account-mcp.git
+git clone https://github.com/DoneSpeak/wechat-official-account-mcp.git
 cd wechat-official-account-mcp
 
 # 2. 安装依赖
@@ -96,7 +96,9 @@ node dist/src/cli.js mcp -a <your_app_id> -s <your_app_secret>
 
 环境变量（常用）：
 - `CORS_ORIGIN`: 逗号分隔的跨域来源白名单（示例：`https://a.example.com,https://b.example.com`）
-- `WECHAT_MCP_SECRET_KEY`: 开启敏感字段加密存储（AES），设置即启用
+- `WECHAT_MCP_SECRET_KEY`: 开启敏感字段加密存储（AES），生产环境必须设置
+- `WECHAT_MCP_SSE_TOKEN` / `MCP_AUTH_TOKEN`: SSE 模式访问令牌（建议生产环境设置）
+- `WECHAT_MCP_REVEAL_SECRETS`: 设为 `true` 时允许 `wechat_auth` 通过 `reveal=true` 返回完整敏感信息（默认关闭）
 
 ## 🔧 MCP 工具列表
 
@@ -404,7 +406,7 @@ src/
     "wechat-official-account": {
       "command": "npx",
       "args": [
-        "wechat-official-account-mcp",
+        "yummy-wechat-official-account-mcp",
         "mcp",
         "-a", "your_wechat_app_id",
         "-s", "your_wechat_app_secret"
@@ -441,7 +443,7 @@ src/
     "wechat-official-account": {
       "command": "npx",
       "args": [
-        "wechat-official-account-mcp",
+        "yummy-wechat-official-account-mcp",
         "mcp",
         "-a", "your_wechat_app_id",
         "-s", "your_wechat_app_secret"
@@ -500,8 +502,9 @@ npm run build
 # 本地测试包
 npm pack
 
-# 发布到 npm
-npm publish
+# 打发布 tag（触发 GitHub Actions 自动发布到 npm）
+git tag release-1.0.0
+git push origin release-1.0.0
 ```
 
 ### 测试
@@ -530,8 +533,14 @@ DEBUG=true
 # 跨域来源白名单（强烈建议生产环境设置）
 CORS_ORIGIN=https://your-domain.com,https://another-domain.com
 
-# 开启敏感字段加密（设置后启用 AES 加密存储）
+# 开启敏感字段加密（生产环境必须设置）
 WECHAT_MCP_SECRET_KEY=your-strong-secret-key
+
+# SSE 鉴权（生产环境建议设置，支持 WECHAT_MCP_SSE_TOKEN 或 MCP_AUTH_TOKEN）
+WECHAT_MCP_SSE_TOKEN=your-sse-auth-token
+
+# 仅用于排障：允许 wechat_auth 在 reveal=true 时返回完整敏感信息（默认关闭）
+WECHAT_MCP_REVEAL_SECRETS=false
 
 # 数据库路径（可选，默认为 ./data/wechat-mcp.db）
 DB_PATH=./data/wechat-mcp.db
@@ -547,6 +556,9 @@ DB_PATH=./data/wechat-mcp.db
 ## 🔒 安全说明
 
 - 加密存储：设置 `WECHAT_MCP_SECRET_KEY` 后，`app_secret/token/encoding_aes_key/access_token` 以加密形式持久化（带 `enc:` 前缀标识）
+- 生产要求：生产环境必须设置 `WECHAT_MCP_SECRET_KEY`，并限制数据库文件权限
+- SSE 鉴权：建议设置 `WECHAT_MCP_SSE_TOKEN`（或 `MCP_AUTH_TOKEN`）保护 `/sse` 与 `/messages` 入口
+- 敏感输出保护：`wechat_auth` 默认脱敏，只有 `WECHAT_MCP_REVEAL_SECRETS=true` 且 `reveal=true` 才返回明文
 - 日志脱敏：错误日志仅记录状态码或消息，避免泄露响应体与敏感信息
 - 跨域白名单：生产环境务必设置 `CORS_ORIGIN` 为精确域名列表，避免 `*`
 - 参数校验：工具参数使用 Zod 校验，降低不当输入风险
@@ -568,7 +580,7 @@ DB_PATH=./data/wechat-mcp.db
 
 如果您遇到问题或有建议，请：
 
-1. 查看 [Issues](https://github.com/xwang152-jack/wechat-official-account-mcp/issues) 页面
+1. 查看 [Issues](https://github.com/DoneSpeak/wechat-official-account-mcp/issues) 页面
 2. 创建新的 Issue
 3. 联系项目维护者: xwang152-jack <xwang152@163.com>
 

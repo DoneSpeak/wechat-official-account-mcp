@@ -43,7 +43,7 @@ export async function initWechatMcpServer(options: McpServerOptions) {
   // 创建认证管理器
   const authManager = new AuthManager();
   await authManager.initialize();
-  await authManager.setConfig({ appId, appSecret });
+  await authManager.setCredentialsFromCli(appId, appSecret);
 
   // 创建微信MCP工具
   const wechatTool = new WechatMcpTool(authManager);

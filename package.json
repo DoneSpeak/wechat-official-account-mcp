@@ -1,5 +1,5 @@
 {
-  "name": "wechat-official-account-mcp",
+  "name": "yummy-wechat-official-account-mcp",
   "version": "2.0.0",
   "type": "module",
   "description": "微信公众号 MCP 服务 - 为 AI 应用提供完整的微信公众号 API 集成（15个工具模块）",
@@ -28,11 +28,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/xwang152-jack/wechat-official-account-mcp.git"
+    "url": "https://github.com/DoneSpeak/wechat-official-account-mcp.git"
   },
-  "homepage": "https://github.com/xwang152-jack/wechat-official-account-mcp#readme",
+  "homepage": "https://github.com/DoneSpeak/wechat-official-account-mcp#readme",
   "bugs": {
-    "url": "https://github.com/xwang152-jack/wechat-official-account-mcp/issues"
+    "url": "https://github.com/DoneSpeak/wechat-official-account-mcp/issues"
   },
   "scripts": {
     "build": "npm run clean && tsc",
@@ -41,6 +41,7 @@
     "prepublishOnly": "npm run build:prod",
     "lint": "eslint .",
     "check": "tsc --noEmit",
+    "test:unit": "tsx --test src/security-fixes.test.ts",
     "test": "npm run build:prod && node test-tools.js",
     "clean": "rm -rf dist",
     "pack:test": "./scripts/pack-test.sh",
@@ -58,8 +59,6 @@
     "dotenv": "^17.2.1",
     "express": "^4.21.2",
     "form-data": "^4.0.0",
-    "jsonwebtoken": "^9.0.2",
-    "multer": "^2.1.1",
     "sqlite3": "^6.0.1",
     "zod": "^3.22.0"
   },

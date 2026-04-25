@@ -28,11 +28,9 @@ const SENSITIVE_FIELDS = [
  */
 function sanitizeValue(value: unknown): unknown {
   if (typeof value === 'string') {
-    // 检查是否像 token 或 secret
-    if (value.length > 16) {
-      return `${value.substring(0, 8)}...${value.substring(value.length - 4)}`;
-    }
-    return '***';
+    return value.length > 16
+      ? `${value.substring(0, 8)}...${value.substring(value.length - 4)}`
+      : value;
   }
 
   if (typeof value === 'object' && value !== null) {
@@ -47,7 +45,7 @@ function sanitizeValue(value: unknown): unknown {
         key.toLowerCase().includes(field.toLowerCase())
       );
 
-      sanitized[key] = isSensitive ? sanitizeValue(val) : sanitizeValue(val);
+      sanitized[key] = isSensitive ? '***' : sanitizeValue(val);
     }
     return sanitized;
   }
