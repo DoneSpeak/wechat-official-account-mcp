@@ -109,7 +109,11 @@ export class WechatMcpTool {
     const tools = this.getTools();
     
     for (const tool of tools) {
-      server.registerTool(
+      (server.registerTool as unknown as (
+        name: string,
+        config: { description: string; inputSchema: unknown },
+        handler: (params: unknown) => Promise<WechatToolResult>
+      ) => void)(
         tool.name,
         {
           description: tool.description,

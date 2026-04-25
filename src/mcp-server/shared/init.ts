@@ -35,10 +35,9 @@ export async function initWechatMcpServer(options: McpServerOptions) {
   };
 
   // 创建MCP服务器
-  const mcpServer = new McpServer({ 
-    id: 'wechat-mcp-server', 
-    name: 'WeChat Official Account MCP Server', 
-    version: getVersion() 
+  const mcpServer = new McpServer({
+    name: 'WeChat Official Account MCP Server',
+    version: getVersion()
   });
 
   // 创建认证管理器

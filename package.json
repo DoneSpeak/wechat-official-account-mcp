@@ -59,8 +59,8 @@
     "express": "^4.21.2",
     "form-data": "^4.0.0",
     "jsonwebtoken": "^9.0.2",
-    "multer": "^1.4.5-lts.1",
-    "sqlite3": "^5.1.6",
+    "multer": "^2.1.1",
+    "sqlite3": "^6.0.1",
     "zod": "^3.22.0"
   },
   "devDependencies": {
@@ -74,7 +74,7 @@
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@types/sqlite3": "^3.1.11",
-    "@vercel/node": "^5.3.6",
+    "@vercel/node": "^4.0.0",
     "@vitejs/plugin-react": "^4.4.1",
     "autoprefixer": "^10.4.21",
     "babel-plugin-react-dev-locator": "^1.0.0",
@@ -99,5 +99,9 @@
     "vite-plugin-trae-solo-badge": "^1.0.0",
     "vite-tsconfig-paths": "^5.1.4",
     "zustand": "^5.0.3"
+  },
+  "overrides": {
+    "tar": "7.5.13",
+    "undici": "6.25.0"
   }
 }
